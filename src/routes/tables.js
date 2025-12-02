@@ -12,10 +12,11 @@ const { pool } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 
 /**
- * GET /api/floors
+ * GET /api/tables/floors
  * Get all floors with their tables
+ * Requires authentication
  */
-router.get('/floors', async (req, res) => {
+router.get('/floors', authenticateToken, async (req, res) => {
   try {
     // Get all floors ordered by sort_order
     const [floors] = await pool.query(
