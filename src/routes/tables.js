@@ -164,11 +164,12 @@ router.put('/:id/status', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    if (!['available', 'occupied', 'reserved', 'cleaning'].includes(status)) {
+    // Cross-check with database-schema.sql: tables.status ENUM('available','occupied','reserved','needs_cleaning')
+    if (!['available', 'occupied', 'reserved', 'needs_cleaning'].includes(status)) {
       return res.status(400).json({
         success: false,
         error: {
-          message: 'Invalid status',
+          message: 'Invalid status. Must be: available, occupied, reserved, needs_cleaning',
           code: 'INVALID_STATUS'
         }
       });
