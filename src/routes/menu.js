@@ -23,13 +23,12 @@ router.get('/', async (req, res) => {
 
     let query = `
       SELECT 
-        m.id, m.name, m.name_en, m.description, m.category_id, m.unit_price,
-        m.image_url, m.is_available, m.display_order, m.prep_time_minutes,
-        m.kitchen_area_id, m.allergens, m.is_spicy, m.is_vegetarian,
-        c.name as category_name, c.name_en as category_name_en,
+        m.id, m.name, m.description, m.category_id, m.base_price as unit_price,
+        m.image_url, m.available as is_available, m.sort_order as display_order,
+        c.name as category_name,
         ka.name as kitchen_area_name
       FROM menu_items m
-      LEFT JOIN categories c ON m.category_id = c.id
+      LEFT JOIN menu_categories c ON m.category_id = c.id
       LEFT JOIN kitchen_areas ka ON m.kitchen_area_id = ka.id
       WHERE 1=1
     `;
@@ -46,7 +45,7 @@ router.get('/', async (req, res) => {
       params.push(is_available === 'true' || is_available === '1' ? 1 : 0);
     }
 
-    query += ' ORDER BY c.display_order, m.display_order';
+    query += ' ORDER BY c.sort_order, m.sort_order';
 
     const [items] = await pool.query(query, params);
 
@@ -73,7 +72,7 @@ router.get('/', async (req, res) => {
 router.get('/categories', async (req, res) => {
   try {
     const [categories] = await pool.query(
-      'SELECT id, name, name_en, display_order FROM categories ORDER BY display_order'
+      'SELECT id, name, sort_order as display_order FROM menu_categories WHERE active = 1 ORDER BY sort_order'
     );
 
     res.json({
@@ -102,13 +101,12 @@ router.get('/:id', async (req, res) => {
 
     const [items] = await pool.query(
       `SELECT 
-        m.id, m.name, m.name_en, m.description, m.category_id, m.unit_price,
-        m.image_url, m.is_available, m.display_order, m.prep_time_minutes,
-        m.kitchen_area_id, m.allergens, m.is_spicy, m.is_vegetarian,
+        m.id, m.name, m.description, m.category_id, m.base_price as unit_price,
+        m.image_url, m.available as is_available, m.sort_order as display_order,
         c.name as category_name,
         ka.name as kitchen_area_name
        FROM menu_items m
-       LEFT JOIN categories c ON m.category_id = c.id
+       LEFT JOIN menu_categories c ON m.category_id = c.id
        LEFT JOIN kitchen_areas ka ON m.kitchen_area_id = ka.id
        WHERE m.id = ?`,
       [id]
