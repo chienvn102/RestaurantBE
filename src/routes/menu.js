@@ -25,12 +25,10 @@ router.get('/', async (req, res) => {
       SELECT 
         m.id, m.name, m.description, m.category_id, m.base_price as unit_price,
         m.image_url, m.available as is_available, m.sort_order as display_order,
-        c.name as category_name,
-        ka.name as kitchen_area_name
+        c.name as category_name
       FROM menu_items m
       LEFT JOIN menu_categories c ON m.category_id = c.id
-      LEFT JOIN kitchen_areas ka ON m.kitchen_area_id = ka.id
-      WHERE 1=1
+      WHERE m.active = 1
     `;
     
     const params = [];
@@ -103,11 +101,9 @@ router.get('/:id', async (req, res) => {
       `SELECT 
         m.id, m.name, m.description, m.category_id, m.base_price as unit_price,
         m.image_url, m.available as is_available, m.sort_order as display_order,
-        c.name as category_name,
-        ka.name as kitchen_area_name
+        c.name as category_name
        FROM menu_items m
        LEFT JOIN menu_categories c ON m.category_id = c.id
-       LEFT JOIN kitchen_areas ka ON m.kitchen_area_id = ka.id
        WHERE m.id = ?`,
       [id]
     );
