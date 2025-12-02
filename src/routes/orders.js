@@ -181,14 +181,14 @@ router.get('/:id', authenticateToken, async (req, res) => {
     // Get order header
     const [orders] = await pool.query(
       `SELECT 
-        o.id, o.order_number, o.table_id, o.status, o.customer_count,
-        o.total_amount, o.discount_amount, o.tax_amount, o.final_amount,
-        o.note, o.created_at, o.updated_at,
-        t.name as table_name, t.area as table_area,
+        o.id, o.order_number, o.table_id, o.status,
+        o.subtotal, o.discount, o.tax, o.total,
+        o.notes, o.created_at, o.updated_at,
+        t.table_number as table_name,
         e.full_name as waiter_name
        FROM orders o
        LEFT JOIN tables t ON o.table_id = t.id
-       LEFT JOIN employees e ON o.waiter_id = e.id
+       LEFT JOIN employees e ON o.employee_id = e.id
        WHERE o.id = ?`,
       [id]
     );
@@ -206,13 +206,12 @@ router.get('/:id', authenticateToken, async (req, res) => {
     // Get order lines
     const [lines] = await pool.query(
       `SELECT 
-        ol.id, ol.menu_item_id, ol.qty, ol.unit_price, ol.line_total,
-        ol.modifiers, ol.note, ol.status,
-        m.name as item_name, m.image_url,
-        ka.name as kitchen_area
+        ol.id, ol.menu_item_id, ol.quantity as qty, ol.unit_price, ol.line_total,
+        ol.modifiers, ol.note, ol.kitchen_status as status,
+        ol.menu_item_name as item_name,
+        m.image_url
        FROM order_lines ol
        LEFT JOIN menu_items m ON ol.menu_item_id = m.id
-       LEFT JOIN kitchen_areas ka ON m.kitchen_area_id = ka.id
        WHERE ol.order_id = ?
        ORDER BY ol.id`,
       [id]
