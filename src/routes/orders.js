@@ -303,8 +303,10 @@ router.post('/:id/lines', authenticateToken, async (req, res) => {
         id: result.insertId,
         order_id: id,
         menu_item_id: menu_item_id,
+        menu_item_name: menuItem.name,
         qty: qty,
-        unit_price: unitPrice
+        unit_price: menuItem.base_price,
+        line_total: lineTotal
       }
     });
   } catch (error) {
