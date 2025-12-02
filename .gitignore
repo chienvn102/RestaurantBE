@@ -4,10 +4,13 @@ package-lock.json
 
 # Environment variables
 .env
+.env.local
+.env.production
 
 # Logs
 logs/
 *.log
+npm-debug.log*
 
 # Uploads
 uploads/
@@ -24,3 +27,26 @@ coverage/
 # OS
 .DS_Store
 Thumbs.db
+
+# Build outputs
+dist/
+build/
+
+# Database backups
+*.sql.gz
+backups/
+
+# Temporary files
+tmp/
+temp/
+
+# Git (ignore nested repos)
+RestaurantBE/
+
+# Documentation files (đã có ở root project, không cần trong backend)
+BACKEND.md
+FRONTEND.md
+WORKFLOWS.md
+database-schema.sql
+seed-data.sql
+README copy.md

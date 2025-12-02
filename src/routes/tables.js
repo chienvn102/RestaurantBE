@@ -27,7 +27,7 @@ router.get('/floors', authenticateToken, async (req, res) => {
     const [tables] = await pool.query(`
       SELECT 
         t.id, t.floor_id, t.table_number, t.seats, t.status, t.qr_code_token,
-        t.current_order_id,
+        t.current_order_id, t.position_x, t.position_y, t.shape,
         o.order_number, o.total, o.opened_at as order_created_at
       FROM tables t
       LEFT JOIN orders o ON t.current_order_id = o.id
@@ -358,6 +358,179 @@ router.post('/:id/free', authenticateToken, async (req, res) => {
         code: 'FREE_TABLE_ERROR'
       }
     });
+  }
+});
+
+/**
+ * PUT /api/tables/:id/position
+ * Update table position (for drag-and-drop floor editor)
+ * Cross-check: database-schema.sql (position_x, position_y, shape columns)
+ */
+router.put('/:id/position', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { position_x, position_y, shape } = req.body;
+
+    // Validate inputs
+    if (position_x === undefined || position_y === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'position_x and position_y are required',
+          code: 'INVALID_POSITION'
+        }
+      });
+    }
+
+    // Check table exists
+    const [tables] = await pool.query(
+      'SELECT id FROM tables WHERE id = ?',
+      [id]
+    );
+
+    if (tables.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'Table not found',
+          code: 'TABLE_NOT_FOUND'
+        }
+      });
+    }
+
+    // Update position
+    const updateFields = ['position_x = ?', 'position_y = ?'];
+    const updateValues = [position_x, position_y];
+
+    if (shape) {
+      updateFields.push('shape = ?');
+      updateValues.push(shape);
+    }
+
+    updateValues.push(id);
+
+    await pool.query(
+      `UPDATE tables SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = ?`,
+      updateValues
+    );
+
+    // Emit WebSocket event
+    const io = req.app.get('io');
+    io.emit('table:position-update', {
+      table_id: parseInt(id),
+      position_x,
+      position_y,
+      shape: shape || null
+    });
+
+    res.json({
+      success: true,
+      data: {
+        id: parseInt(id),
+        position_x,
+        position_y,
+        shape: shape || null,
+        message: 'Table position updated'
+      }
+    });
+  } catch (error) {
+    console.error('Update table position error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to update table position',
+        code: 'UPDATE_POSITION_ERROR'
+      }
+    });
+  }
+});
+
+/**
+ * PUT /api/tables/batch/positions
+ * Batch update table positions (save entire floor layout)
+ * Cross-check: database-schema.sql (position_x, position_y)
+ */
+router.put('/batch/positions', authenticateToken, async (req, res) => {
+  const connection = await pool.getConnection();
+  
+  try {
+    const { tables } = req.body;
+
+    if (!Array.isArray(tables) || tables.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Invalid tables array',
+          code: 'INVALID_INPUT'
+        }
+      });
+    }
+
+    await connection.beginTransaction();
+
+    // Update each table position
+    for (const table of tables) {
+      const { id, position_x, position_y, shape } = table;
+
+      if (!id || position_x === undefined || position_y === undefined) {
+        await connection.rollback();
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: 'Each table must have id, position_x, position_y',
+            code: 'INVALID_TABLE_DATA'
+          }
+        });
+      }
+
+      const updateFields = ['position_x = ?', 'position_y = ?'];
+      const updateValues = [position_x, position_y];
+
+      if (shape) {
+        updateFields.push('shape = ?');
+        updateValues.push(shape);
+      }
+
+      updateValues.push(id);
+
+      await connection.query(
+        `UPDATE tables SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = ?`,
+        updateValues
+      );
+    }
+
+    await connection.commit();
+
+    // Emit WebSocket event
+    const io = req.app.get('io');
+    io.emit('tables:layout-update', {
+      tables: tables.map(t => ({
+        table_id: t.id,
+        position_x: t.position_x,
+        position_y: t.position_y,
+        shape: t.shape || null
+      }))
+    });
+
+    res.json({
+      success: true,
+      data: {
+        updated_count: tables.length,
+        message: 'Table positions updated successfully'
+      }
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Batch update positions error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to update table positions',
+        code: 'BATCH_UPDATE_ERROR'
+      }
+    });
+  } finally {
+    connection.release();
   }
 });
 
