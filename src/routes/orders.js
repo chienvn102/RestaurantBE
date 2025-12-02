@@ -259,9 +259,9 @@ router.post('/:id/lines', authenticateToken, async (req, res) => {
       });
     }
 
-    // Get menu item price
+    // Get menu item price and name
     const [items] = await connection.query(
-      'SELECT id, unit_price FROM menu_items WHERE id = ?',
+      'SELECT id, name, base_price FROM menu_items WHERE id = ?',
       [menu_item_id]
     );
 
@@ -276,14 +276,15 @@ router.post('/:id/lines', authenticateToken, async (req, res) => {
       });
     }
 
-    const unitPrice = items[0].unit_price;
+    const menuItem = items[0];
+    const lineTotal = parseFloat(menuItem.base_price) * qty;
 
-    // Insert order line (trigger will calculate total)
+    // Insert order line
     const [result] = await connection.query(
       `INSERT INTO order_lines 
-       (order_id, menu_item_id, qty, unit_price, modifiers, note)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, menu_item_id, qty, unitPrice, JSON.stringify(modifiers || []), note]
+       (order_id, menu_item_id, menu_item_name, quantity, unit_price, line_total, modifiers, note)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, menu_item_id, menuItem.name, qty, menuItem.base_price, lineTotal, JSON.stringify(modifiers || []), note]
     );
 
     await connection.commit();
